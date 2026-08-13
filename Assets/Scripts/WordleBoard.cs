@@ -170,7 +170,11 @@ public class WordleBoard : MonoBehaviour
         rowIndex++;
         columnIndex = 0;
 
+<<<<<<< Updated upstream
         // if exceeded row number (to-do: change to scroll function)
+=======
+        // if exceeded row number (to-do: change to scroll function and rowIndex logic)
+>>>>>>> Stashed changes
         if (rowIndex >= rows.Length)
         {
             enabled = false;
