@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7554303242687415007}
   - component: {fileID: 9215780118307627202}
+  - component: {fileID: -6694752722436507243}
   m_Layer: 5
   m_Name: Row
   m_TagString: Untagged
@@ -59,7 +60,7 @@ MonoBehaviour:
     m_Top: 0
     m_Bottom: 0
   m_ChildAlignment: 4
-  m_Spacing: 16
+  m_Spacing: 24
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 0
@@ -67,6 +68,18 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &-6694752722436507243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1848695123596570638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2711f6d2183fa46e9b7cd62702f99dab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WordleRow
 --- !u!1001 &1488864854145141138
 PrefabInstance:
   m_ObjectHideFlags: 0

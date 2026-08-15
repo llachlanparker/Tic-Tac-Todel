@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
+using TMPro;
+using UnityEngine.UI;
 
 public class WordleBoard : MonoBehaviour
 {
@@ -28,6 +30,18 @@ public class WordleBoard : MonoBehaviour
     private int rowIndex;
     private int columnIndex;
 
+    // tile states
+    [Header("States")]
+    public WordleTile.State selectedState;
+    public WordleTile.State emptyState;
+    public WordleTile.State occupiedState;
+    public WordleTile.State correctState;
+    public WordleTile.State wrongSpotState;
+    public WordleTile.State incorrectState;
+
+    [Header("UI")]
+    public TextMeshProUGUI invalidWordText;
+
     private void Awake()
     {
         rows = GetComponentsInChildren<WordleRow>();
@@ -39,52 +53,35 @@ public class WordleBoard : MonoBehaviour
         SetRandomWord(); // to-do: move to different function
     }
 
+    private void LoadData()
+    {
+        var wordlesText = Resources.Load<TextAsset>("wordles");
+        _wordles = ParseJsonStringArray(wordlesText.text);
+
+        var nonWordlesText = Resources.Load<TextAsset>("nonwordles");
+        _nonWordles = new HashSet<string>(ParseJsonStringArray(nonWordlesText.text));
+
+        _allAccepted = new HashSet<string>(_wordles);
+        _allAccepted.UnionWith(_nonWordles);
+    }
+
     // pick a random word to be the solution
     private void SetRandomWord()
     {
         word = _wordles[Random.Range(0, _wordles.Count)];
     }
 
-    // I'll be honest 80% of this function was vibecoded 
-    private void LoadData()
-    {
-        var wordlesText = Resources.Load<TextAsset>("wordles");
-        var nonWordlesText = Resources.Load<TextAsset>("nonwordles");
-
-        // if resources return null (just in case)
-        if (wordlesText == null) throw new System.Exception("Missing Resources/wordles.json (TextAsset)");
-        if (nonWordlesText == null) throw new System.Exception("Missing Resources/nonwordles.json (TextAsset)");
-
-        // to-do: delete ts this is just to see the nonwordles data since its hashed and the inspector wont freaking show it 
-        Debug.Log($"wordlesText null? {wordlesText == null}");
-        Debug.Log($"nonWordlesText null? {nonWordlesText == null}");
-        if (nonWordlesText != null)
-            Debug.Log("nonWordles preview: " + nonWordlesText.text.Substring(0, Mathf.Min(80, nonWordlesText.text.Length)));
-        var parsedNon = ParseJsonStringArray(nonWordlesText.text);
-        Debug.Log("Parsed nonwordles count: " + parsedNon.Count);
-        _nonWordles = new HashSet<string>(parsedNon, System.StringComparer.OrdinalIgnoreCase);
-        Debug.Log("HashSet nonwordles count: " + _nonWordles.Count);
-
-        // parse data into strings
-        _wordles = ParseJsonStringArray(wordlesText.text);
-        _nonWordles = new HashSet<string>(ParseJsonStringArray(nonWordlesText.text), System.StringComparer.OrdinalIgnoreCase);
-
-        _allAccepted = new HashSet<string>(_wordles, System.StringComparer.OrdinalIgnoreCase);
-        _allAccepted.UnionWith(_nonWordles);
-    }
-
-    // This was also vibecoded (can you tell idk how json files work in unity? Thats why I'm using csv for my other data ;))
-    // For JSON like: ["cigar","rebut","sissy",...]
+    // For JSON like: ["cigar","rebut", etc..]
     private static List<string> ParseJsonStringArray(string json)
     {
         var result = new List<string>();
         if (string.IsNullOrWhiteSpace(json)) return result;
 
         // make sure all words have no spaces
-        json = json.Trim();
+        json = json.ToLower().Trim();
         if (!json.StartsWith("[") || !json.EndsWith("]")) return result;
 
-        // Extract quoted strings: "...."
+        // Extract quoted strings
         int i = 0;
         while (i < json.Length)
         {
@@ -100,8 +97,23 @@ public class WordleBoard : MonoBehaviour
 
             i = quoteEnd + 1;
         }
-
+        
         return result;
+    }
+
+    private void SelectionState(WordleRow row, int newColumnIndex)
+    {
+        newColumnIndex = Mathf.Clamp(newColumnIndex, 0, row.tiles.Length - 1);
+
+        // find current selected tile
+        for (int i = 0; i < row.tiles.Length; i++)
+        {
+            // only update tiles that are currently selected
+            if (row.tiles[i].state == selectedState)
+            {
+                row.tiles[i].SetState(emptyState);
+            }
+        }
     }
 
     private void Update()
@@ -111,8 +123,14 @@ public class WordleBoard : MonoBehaviour
         // handle backspacing
         if (Keyboard.current.backspaceKey.wasPressedThisFrame)
         {
-            columnIndex = Mathf.Max(columnIndex - 1, 0); // avoid negative columnIndex (0 > 1 assign index to zero)
-            currentRow.tiles[columnIndex].SetLetter('\0'); // null
+            columnIndex = Mathf.Max(columnIndex - 1, 0); // 0 > 1 assign index to zero
+            
+            currentRow.tiles[columnIndex].SetLetter('\0');
+            currentRow.tiles[columnIndex].SetState(emptyState);
+
+            SelectionState(currentRow, columnIndex);
+
+            invalidWordText.gameObject.SetActive(false);
         }
 
         else if (columnIndex >= currentRow.tiles.Length)
@@ -123,16 +141,20 @@ public class WordleBoard : MonoBehaviour
                 SubmitRow(currentRow);
             }
         }
+
         else
         {
             // go through to array to type
             for (int i = 0; i < SUPPORTED_KEYS.Length; i++)
             {
+                currentRow.tiles[columnIndex].SetState(selectedState);
+
                 if (Keyboard.current[SUPPORTED_KEYS[i]].wasPressedThisFrame)
                 {
                     if (columnIndex < currentRow.tiles.Length)
                     {
-                        currentRow.tiles[columnIndex].SetLetter((char)('A' + i));
+                        currentRow.tiles[columnIndex].SetLetter((char)('a' + i));
+                        currentRow.tiles[columnIndex].SetState(occupiedState);
                         columnIndex++;
                     }
 
@@ -142,42 +164,92 @@ public class WordleBoard : MonoBehaviour
         }
     }
 
-    // compare word to answer before submit; change colour states
     private void SubmitRow(WordleRow row)
     {
-        // to-do: update logic
+        if (!IsValidWord(row.word))
+        {
+            invalidWordText.gameObject.SetActive(true);
+            return;
+        }
+
+        // Count how many times each letter appears in the solution
+        var counts = new Dictionary<char, int>();
+        foreach (char c in word)
+        {
+            if (!counts.ContainsKey(c)) counts[c] = 0;
+            counts[c]++;
+        }
+
+        // first pass mark correct
         for (int i = 0; i < row.tiles.Length; i++)
         {
             WordleTile tile = row.tiles[i];
 
-            // access the char
             if (tile.letter == word[i])
             {
-                // correct state
+                tile.SetState(correctState);
+                counts[tile.letter]--;
             }
-            else if (word.Contains(tile.letter))
+        }
+
+        // second pass mark wrongSpotState, else incorrect
+        for (int i = 0; i < row.tiles.Length; i++)
+        {
+            WordleTile tile = row.tiles[i];
+
+            // keep correct tiles as correct
+            if (tile.state == correctState)
+                continue;
+
+            char c = tile.letter;
+
+            // when the answer has one letter, but the guess contains two of that letter, 
+            // only SetState one letter to correct or wrongspot
+            if (counts.TryGetValue(c, out int remaining) && remaining > 0)
             {
-                // wrong spot
+                tile.SetState(wrongSpotState);
+                counts[c]--;
             }
             else
             {
-                // incorrect
+                tile.SetState(incorrectState);
             }
         }
 
-        // to-do: fix issue when submitting a row, the rowindex does increase but typing stops working (columnindex wont update either) 
-        // not sure what the issue is yet sorry future me
+        // win, start tic tac toe placement
+        if (HasWon(row))
+        {
+            enabled = false;
+            //...
+        }
+
+        // advance to next row
         rowIndex++;
         columnIndex = 0;
 
-<<<<<<< Updated upstream
-        // if exceeded row number (to-do: change to scroll function)
-=======
-        // if exceeded row number (to-do: change to scroll function and rowIndex logic)
->>>>>>> Stashed changes
         if (rowIndex >= rows.Length)
         {
-            enabled = false;
+            enabled = false; // disable script (update wont be called)
         }
+    }
+
+    // validate word is real
+    private bool IsValidWord(string word)
+    {
+        return _allAccepted.Contains(word);
+    }
+
+    // win
+    private bool HasWon(WordleRow row)
+    {
+        for (int i = 0; i < row.tiles.Length; i++)
+        {
+            if (row.tiles[i].state != correctState)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
