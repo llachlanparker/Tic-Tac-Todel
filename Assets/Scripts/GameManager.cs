@@ -108,6 +108,7 @@ public class GameManager : MonoBehaviour
                 return false;
             }
         }
+        return false;
     }
 
     private GridSquareState CheckForWin()
