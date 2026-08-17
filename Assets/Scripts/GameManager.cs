@@ -1,4 +1,7 @@
 using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
@@ -10,6 +13,10 @@ public class GameManager : MonoBehaviour
     private GridSquareState _opponentSquareState;
     private bool _awaitingInput = false;
     private TicTacToeResult _currentGameState;
+
+    // UI
+    [SerializeField] private TextMeshProUGUI _playerTrackerText;
+    [SerializeField] private TextMeshProUGUI _opponentTrackerText;
 
     private void Awake()
     {
@@ -46,6 +53,10 @@ public class GameManager : MonoBehaviour
             _playerSquareState = GridSquareState.x;
             _opponentSquareState = GridSquareState.o;
         }
+
+        // Set player tracker UI
+        _playerTrackerText.text = _playerSquareState.ToString();
+        _opponentTrackerText.text = _opponentSquareState.ToString();
 
         _awaitingInput = true; // wait for player to click on a square
     }
