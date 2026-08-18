@@ -60,7 +60,6 @@ public class GameManager : MonoBehaviour
         _opponentTrackerText.text = _opponentSquareState.ToString();
 
         SetCurrentTurnUI();
-
         _awaitingInput = true; // wait for player to click on a square
     }
 
@@ -195,6 +194,7 @@ public class GameManager : MonoBehaviour
         {
             _currentTurn = Turn.playerTurn;
         }
+        SetCurrentTurnUI();
     }
 
     private void SetCurrentTurnUI()
@@ -202,8 +202,9 @@ public class GameManager : MonoBehaviour
         if (_currentTurn == Turn.playerTurn)
         {
             _currentPlayerNumberText.text = "Player 1";
+            
         }
-        if (_currentTurn == Turn.opponentTurn)
+        else
         {
             _currentPlayerNumberText.text = "Player 2";
         }
