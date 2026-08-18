@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
     // UI
     [SerializeField] private TextMeshProUGUI _playerTrackerText;
     [SerializeField] private TextMeshProUGUI _opponentTrackerText;
+    [SerializeField] private TextMeshProUGUI _currentPlayerNumberText;
 
     private void Awake()
     {
@@ -38,8 +39,8 @@ public class GameManager : MonoBehaviour
 
         _gridManager.ResetGrid(); // empty grid on play
 
-        // pick random player to have first turn
-        int firstTurn = Random.Range(0, 2);
+        // player 1 always has first turn
+        int firstTurn = 0;
         _currentTurn = (Turn)firstTurn;
 
         // Assign grid square state to player
@@ -57,6 +58,8 @@ public class GameManager : MonoBehaviour
         // Set player tracker UI
         _playerTrackerText.text = _playerSquareState.ToString();
         _opponentTrackerText.text = _opponentSquareState.ToString();
+
+        SetCurrentTurnUI();
 
         _awaitingInput = true; // wait for player to click on a square
     }
@@ -191,6 +194,18 @@ public class GameManager : MonoBehaviour
         else
         {
             _currentTurn = Turn.playerTurn;
+        }
+    }
+
+    private void SetCurrentTurnUI()
+    {
+        if (_currentTurn == Turn.playerTurn)
+        {
+            _currentPlayerNumberText.text = "Player 1";
+        }
+        if (_currentTurn == Turn.opponentTurn)
+        {
+            _currentPlayerNumberText.text = "Player 2";
         }
     }
 
