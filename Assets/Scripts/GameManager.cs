@@ -19,6 +19,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI _opponentTrackerText;
     [SerializeField] private TextMeshProUGUI _currentPlayerNumberText;
 
+    [SerializeField] private GameObject _gameResults;
+    [SerializeField] private TextMeshProUGUI _resultText;
+
     private void Awake()
     {
         if (instance == null)
