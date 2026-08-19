@@ -36,6 +36,11 @@ public class GameManager : MonoBehaviour
         StartNewGame();
     }
 
+    private void RestartAll()
+    {
+        StartNewGame();
+    }
+
     private void StartNewGame()
     {
         _currentGameState = TicTacToeResult.ongoing;
@@ -59,11 +64,29 @@ public class GameManager : MonoBehaviour
         }
 
         // Set player tracker UI
+        _gameResults.SetActive(false);
         _playerTrackerText.text = _playerSquareState.ToString();
         _opponentTrackerText.text = _opponentSquareState.ToString();
 
         SetCurrentTurnUI();
         _awaitingInput = true; // wait for player to click on a square
+    }
+
+    // save scores
+    private void SaveGameResult()
+    {
+        if (_currentGameState == TicTacToeResult.playerWin)
+        {
+            PlayerData.instance.AddScores(1, 0, 0);
+        }
+        else if (_currentGameState == TicTacToeResult.opponentWin)
+        {
+            PlayerData.instance.AddScores(0, 1, 0);
+        }
+        else if (_currentGameState == TicTacToeResult.draw)
+        {
+            PlayerData.instance.AddScores(0, 0, 1);
+        }
     }
 
     private void ProcessTurn(Turn turn, int selectedSquare)
@@ -88,6 +111,10 @@ public class GameManager : MonoBehaviour
             ChangeTurn();
             _awaitingInput = true;
         }
+        else
+        {
+            _gameResults.SetActive(true);
+        }
     }
 
     private bool CheckIfGameEnded()
@@ -101,12 +128,16 @@ public class GameManager : MonoBehaviour
             {
                 // player1 has won
                 _currentGameState = TicTacToeResult.playerWin;
+                _resultText.text = _playerSquareState.ToString() + " wins!";
+                // SaveGameResult();
                 return true;
             }
             else if (winner == _opponentSquareState)
             {
                 // player2 has won
                 _currentGameState = TicTacToeResult.opponentWin;
+                _resultText.text = _playerSquareState.ToString() + " wins!";
+                // SaveGameResult();
                 return true;
             }
         }
@@ -116,6 +147,8 @@ public class GameManager : MonoBehaviour
             {
                 // draw
                 _currentGameState = TicTacToeResult.draw;
+                _resultText.text = "draw...";
+                /// SaveGameResult();
                 return true;
             }
             else
@@ -205,7 +238,6 @@ public class GameManager : MonoBehaviour
         if (_currentTurn == Turn.playerTurn)
         {
             _currentPlayerNumberText.text = "Player 1";
-            
         }
         else
         {
