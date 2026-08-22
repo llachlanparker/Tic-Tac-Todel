@@ -144,6 +144,8 @@ public class WordleBoard : MonoBehaviour
 
     private void Update()
     {
+        if (!UserManager.instance.IsLoggedIn()) return;
+        
         WordleRow currentRow = rows[rowIndex];
 
         // handle backspacing

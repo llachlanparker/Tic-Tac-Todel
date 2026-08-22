@@ -20,6 +20,9 @@ public class GameManager : MonoBehaviour
     private enum GamePhase { Wordle, TicTacToe }
     private GamePhase _gamePhase;
 
+    private bool _currentTurnWordleSolved = false;
+    private string _currentTicTacToeResult = ""; // "p1win", "p2win", or "draw"
+
     // UI
     [SerializeField] private TextMeshProUGUI _playerTrackerText;
     [SerializeField] private TextMeshProUGUI _opponentTrackerText;
@@ -30,7 +33,7 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject _guide;
     [SerializeField] private GameObject _stats;
-    // [SerializeField] private GameObject _saves;
+    [SerializeField] private GameObject _user;
 
     private void Awake()
     {
@@ -77,6 +80,16 @@ public class GameManager : MonoBehaviour
         _stats.gameObject.SetActive(false);
     }
 
+    // user
+    public void OpenUser()
+    {
+        _user.gameObject.SetActive(true);
+    }
+    public void CloseUser()
+    {
+        _user.gameObject.SetActive(false);
+    }
+
     private void StartNewGame()
     {
         _currentGameState = TicTacToeResult.ongoing;
@@ -115,39 +128,50 @@ public class GameManager : MonoBehaviour
         _wordleBoard.StartNewWordle();
     }
 
-    // This is the method that receives the event callback
+    // start tictactoe
     private void HandleWordleComplete(bool solved)
     {
+        _currentTurnWordleSolved = solved;
+        
         if (solved)
         {
             _gamePhase = GamePhase.TicTacToe;
-            _awaitingInput = true; // let player click on a tile
+            _awaitingInput = true;
         }
         else
         {
-            // Player failed to solve — switch turn, give opponent a new word
             ChangeTurn();
             StartWordle();
         }
     }
 
     // save scores
-    // private void SaveGameResult()
-    // {
-    //     if (_currentGameState == TicTacToeResult.playerWin)
-    //     {
-    //         PlayerData.instance.AddScores(1, 0, 0);
-    //     }
-    //     else if (_currentGameState == TicTacToeResult.opponentWin)
-    //     {
-    //         PlayerData.instance.AddScores(0, 1, 0);
-    //     }
-    //     else if (_currentGameState == TicTacToeResult.draw)
-    //     {
-    //         PlayerData.instance.AddScores(0, 0, 1);
-    //     }
-    // }
+    private void SaveGameResult()
+    {
+        string result;
+        if (_currentGameState == TicTacToeResult.playerWin) 
+        {
+            result = "win";
+            _currentTicTacToeResult = "win";
+        }
+        else if (_currentGameState == TicTacToeResult.opponentWin) 
+        {
+            result = "loss";
+            _currentTicTacToeResult = "loss";
+        }
+        else 
+        {
+            result = "draw";
+            _currentTicTacToeResult = "draw";
+        }
 
+        // Record for UserManager
+        if (UserManager.instance != null)
+        {
+            UserManager.instance.RecordGame(result, _currentTurnWordleSolved, _currentTicTacToeResult);
+            UserManager.instance.LoadUserStats();
+        }
+    }
     private void ProcessTurn(Turn turn, int selectedSquare)
     {
         _awaitingInput = false;
@@ -188,7 +212,7 @@ public class GameManager : MonoBehaviour
                 // player1 has won
                 _currentGameState = TicTacToeResult.playerWin;
                 _resultText.text = _playerSquareState.ToString() + " wins!";
-                // SaveGameResult();
+                SaveGameResult();
                 return true;
             }
             else if (winner == _opponentSquareState)
@@ -196,7 +220,7 @@ public class GameManager : MonoBehaviour
                 // player2 has won
                 _currentGameState = TicTacToeResult.opponentWin;
                 _resultText.text = _playerSquareState.ToString() + " wins!";
-                // SaveGameResult();
+                SaveGameResult();
                 return true;
             }
         }
@@ -207,7 +231,7 @@ public class GameManager : MonoBehaviour
                 // draw
                 _currentGameState = TicTacToeResult.draw;
                 _resultText.text = "draw...";
-                /// SaveGameResult();
+                SaveGameResult();
                 return true;
             }
             else
