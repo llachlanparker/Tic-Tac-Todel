@@ -8,11 +8,17 @@ public class GameManager : MonoBehaviour
     public static GameManager instance;
 
     [SerializeField] private GridManager _gridManager;
+    [SerializeField] private WordleBoard _wordleBoard;
+
     private Turn _currentTurn;
     private GridSquareState _playerSquareState;
     private GridSquareState _opponentSquareState;
     private bool _awaitingInput = false;
     private TicTacToeResult _currentGameState;
+
+    // track either solving or placing
+    private enum GamePhase { Wordle, TicTacToe }
+    private GamePhase _gamePhase;
 
     // UI
     [SerializeField] private TextMeshProUGUI _playerTrackerText;
@@ -21,6 +27,10 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject _gameResults;
     [SerializeField] private TextMeshProUGUI _resultText;
+
+    [SerializeField] private GameObject _guide;
+    [SerializeField] private GameObject _stats;
+    // [SerializeField] private GameObject _saves;
 
     private void Awake()
     {
@@ -33,12 +43,38 @@ public class GameManager : MonoBehaviour
             Debug.LogError("There are more than one GameManagers in this scene");
         }
 
+        _wordleBoard.OnWordleComplete += HandleWordleComplete;
+    }
+    
+    private void Start()
+    {
         StartNewGame();
     }
 
+    // restart btn
     private void RestartAll()
     {
         StartNewGame();
+    }
+
+    // how-to-play
+    public void OpenGuide()
+    {
+        _guide.gameObject.SetActive(true);
+    }
+    public void CloseGuide()
+    {
+        _guide.gameObject.SetActive(false);
+    }
+
+    // stats
+    public void OpenStats()
+    {
+        _stats.gameObject.SetActive(true);
+    }
+    public void CloseStats()
+    {
+        _stats.gameObject.SetActive(false);
     }
 
     private void StartNewGame()
@@ -69,25 +105,48 @@ public class GameManager : MonoBehaviour
         _opponentTrackerText.text = _opponentSquareState.ToString();
 
         SetCurrentTurnUI();
-        _awaitingInput = true; // wait for player to click on a square
+        StartWordle();
+    }
+
+    private void StartWordle()
+    {
+        _gamePhase = GamePhase.Wordle;
+        _awaitingInput = false; // can't place marks yet
+        _wordleBoard.StartNewWordle();
+    }
+
+    // This is the method that receives the event callback
+    private void HandleWordleComplete(bool solved)
+    {
+        if (solved)
+        {
+            _gamePhase = GamePhase.TicTacToe;
+            _awaitingInput = true; // let player click on a tile
+        }
+        else
+        {
+            // Player failed to solve — switch turn, give opponent a new word
+            ChangeTurn();
+            StartWordle();
+        }
     }
 
     // save scores
-    private void SaveGameResult()
-    {
-        if (_currentGameState == TicTacToeResult.playerWin)
-        {
-            PlayerData.instance.AddScores(1, 0, 0);
-        }
-        else if (_currentGameState == TicTacToeResult.opponentWin)
-        {
-            PlayerData.instance.AddScores(0, 1, 0);
-        }
-        else if (_currentGameState == TicTacToeResult.draw)
-        {
-            PlayerData.instance.AddScores(0, 0, 1);
-        }
-    }
+    // private void SaveGameResult()
+    // {
+    //     if (_currentGameState == TicTacToeResult.playerWin)
+    //     {
+    //         PlayerData.instance.AddScores(1, 0, 0);
+    //     }
+    //     else if (_currentGameState == TicTacToeResult.opponentWin)
+    //     {
+    //         PlayerData.instance.AddScores(0, 1, 0);
+    //     }
+    //     else if (_currentGameState == TicTacToeResult.draw)
+    //     {
+    //         PlayerData.instance.AddScores(0, 0, 1);
+    //     }
+    // }
 
     private void ProcessTurn(Turn turn, int selectedSquare)
     {
@@ -109,7 +168,7 @@ public class GameManager : MonoBehaviour
         if (!gameEnded)
         {
             ChangeTurn();
-            _awaitingInput = true;
+            StartWordle();
         }
         else
         {
@@ -172,7 +231,7 @@ public class GameManager : MonoBehaviour
         //...
 
         // horizontal win conditions
-        _gridManager.CheckForWin(0, 1, 2);
+        winner = _gridManager.CheckForWin(0, 1, 2);
         if (winner != GridSquareState.empty)
         {
             return winner;
@@ -189,7 +248,7 @@ public class GameManager : MonoBehaviour
         }
 
         // vertical win conditions
-        _gridManager.CheckForWin(0, 3, 6);
+        winner = _gridManager.CheckForWin(0, 3, 6);
         if (winner != GridSquareState.empty)
         {
             return winner;
@@ -206,7 +265,7 @@ public class GameManager : MonoBehaviour
         }
 
         // diagonal win conditions
-        _gridManager.CheckForWin(0, 4, 8);
+        winner = _gridManager.CheckForWin(0, 4, 8);
         if (winner != GridSquareState.empty)
         {
             return winner;
@@ -247,6 +306,10 @@ public class GameManager : MonoBehaviour
 
     public void GridSquareClicked(int clickedSquare)
     {
+        // only allow clicks in tictactoe phase
+        if (_gamePhase != GamePhase.TicTacToe)
+            return;
+
         if (_awaitingInput == false)
         {
             return;

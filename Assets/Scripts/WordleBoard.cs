@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
+using System;
 
 public class WordleBoard : MonoBehaviour
 {
@@ -42,15 +43,13 @@ public class WordleBoard : MonoBehaviour
     [Header("UI")]
     public TextMeshProUGUI invalidWordText;
 
+    public event Action<bool> OnWordleComplete;
+
     private void Awake()
     {
         rows = GetComponentsInChildren<WordleRow>();
-    }
-
-    private void Start()
-    {
         LoadData();
-        SetRandomWord(); // to-do: move to different function
+        enabled = false;
     }
 
     private void LoadData()
@@ -65,10 +64,37 @@ public class WordleBoard : MonoBehaviour
         _allAccepted.UnionWith(_nonWordles);
     }
 
+    public void StartNewWordle()
+    {
+        rowIndex = 0;
+        columnIndex = 0;
+
+        // clear tiles
+        for (int r = 0; r < rows.Length; r++)
+        {
+            for (int c = 0; c < rows[r].tiles.Length; c++)
+            {
+                rows[r].tiles[c].SetLetter('\0');
+                rows[r].tiles[c].SetState(emptyState);
+            }
+        }
+
+        SetRandomWord();
+        invalidWordText.gameObject.SetActive(false);
+        enabled = true; // re-enable Update()
+    }
+
     // pick a random word to be the solution
     private void SetRandomWord()
     {
-        word = _wordles[Random.Range(0, _wordles.Count)];
+        if (_wordles == null || _wordles.Count == 0)
+        {
+            Debug.LogError("No wordles loaded! Check that wordles.json exists in Resources folder.");
+            word = "hello"; // fallback
+            return;
+        }
+
+        word = _wordles[UnityEngine.Random.Range(0, _wordles.Count)];
     }
 
     // For JSON like: ["cigar","rebut", etc..]
@@ -220,7 +246,8 @@ public class WordleBoard : MonoBehaviour
         if (HasWon(row))
         {
             enabled = false;
-            //...
+            OnWordleComplete?.Invoke(true);
+            return;
         }
 
         // advance to next row
@@ -230,6 +257,7 @@ public class WordleBoard : MonoBehaviour
         if (rowIndex >= rows.Length)
         {
             enabled = false; // disable script (update wont be called)
+            OnWordleComplete?.Invoke(false);
         }
     }
 
