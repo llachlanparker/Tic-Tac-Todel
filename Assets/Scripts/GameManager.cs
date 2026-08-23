@@ -152,12 +152,12 @@ public class GameManager : MonoBehaviour
         if (_currentGameState == TicTacToeResult.playerWin) 
         {
             result = "win";
-            _currentTicTacToeResult = "win";
+            _currentTicTacToeResult = "Player 1";
         }
         else if (_currentGameState == TicTacToeResult.opponentWin) 
         {
             result = "loss";
-            _currentTicTacToeResult = "loss";
+            _currentTicTacToeResult = "Player 2";
         }
         else 
         {
@@ -165,13 +165,13 @@ public class GameManager : MonoBehaviour
             _currentTicTacToeResult = "draw";
         }
 
-        // Record for UserManager
-        if (UserManager.instance != null)
+        // Send to PlayerScores
+        if (PlayerScores.instance != null)
         {
-            UserManager.instance.RecordGame(result, _currentTurnWordleSolved, _currentTicTacToeResult);
-            UserManager.instance.LoadUserStats();
+            PlayerScores.instance.AddGameResult(result, _currentTicTacToeResult);
         }
     }
+
     private void ProcessTurn(Turn turn, int selectedSquare)
     {
         _awaitingInput = false;
@@ -211,16 +211,16 @@ public class GameManager : MonoBehaviour
             {
                 // player1 has won
                 _currentGameState = TicTacToeResult.playerWin;
-                _resultText.text = _playerSquareState.ToString() + " wins!";
                 SaveGameResult();
+                _resultText.text = _currentTicTacToeResult.ToString() + " wins!";
                 return true;
             }
             else if (winner == _opponentSquareState)
             {
                 // player2 has won
                 _currentGameState = TicTacToeResult.opponentWin;
-                _resultText.text = _playerSquareState.ToString() + " wins!";
                 SaveGameResult();
+                _resultText.text = _currentTicTacToeResult.ToString() + " wins!";
                 return true;
             }
         }
@@ -230,8 +230,8 @@ public class GameManager : MonoBehaviour
             {
                 // draw
                 _currentGameState = TicTacToeResult.draw;
-                _resultText.text = "draw...";
                 SaveGameResult();
+                _resultText.text = "draw!";
                 return true;
             }
             else
@@ -345,6 +345,16 @@ public class GameManager : MonoBehaviour
         }
 
         ProcessTurn(_currentTurn, clickedSquare);
+    }
+
+    // reset all gameobjects after logout
+    public void CloseAllPanels()
+    {
+        _guide.SetActive(false);
+        _stats.SetActive(false);
+        _user.SetActive(false);
+        _gameResults.SetActive(false);
+        StartNewGame(); 
     }
 }
 
