@@ -11,7 +11,6 @@ public class PlayerScores : MonoBehaviour
     public TMP_Text playerScores;
 
     private string dbName;
-    private int? _currentUserId = null; // user login
 
     private void Awake()
     {
@@ -34,42 +33,32 @@ public class PlayerScores : MonoBehaviour
     void Start()
     {
         Debug.Log("Database path: " + dbName);
+        DisplayStats();
         return;
     }
 
-    // called by UserManager after successful login
-    public void SetCurrentUser(int userId)
-    {
-        _currentUserId = userId;
-        DisplayStats();
-    }
-
     // Called by GameManager when game ends
-    public void AddGameResult(string result, string tictactoeResult)
+    public void AddGameResult(string tictactoeResult)
     {
-        if (!_currentUserId.HasValue) return;
-
         using (var connection = new SqliteConnection(dbName))
         {
             connection.Open();
 
             using (var command = connection.CreateCommand())
             {
-                // Insert game record
-                command.CommandText =
-                    "INSERT INTO games (user_id, result, tictactoe_result, played_at) " +
-                    "VALUES (" + _currentUserId + ", '" + SanitizeInput(result) + "', '" + 
-                    SanitizeInput(tictactoeResult) + "', datetime('now'));";
-                command.ExecuteNonQuery();
+                command.CommandText = @"
+                    UPDATE player_stats
+                    SET
+                        total_games = total_games + 1,
+                        p1wins = p1wins +
+                            CASE WHEN @winner = 'Player 1' THEN 1 ELSE 0 END,
+                        p2wins = p2wins +
+                            CASE WHEN @winner = 'Player 2' THEN 1 ELSE 0 END,
+                        draws = draws +
+                            CASE WHEN @winner = 'draw' THEN 1 ELSE 0 END;
+                ";
 
-                // Update aggregated stats
-                command.CommandText =
-                    "INSERT INTO user_stats (user_id) VALUES (" + _currentUserId + ") " +
-                    "ON CONFLICT(user_id) DO UPDATE SET " +
-                    "total_games = total_games + 1, " +
-                    "p1wins = p1wins + CASE WHEN '" + SanitizeInput(tictactoeResult) + "' = 'Player 1' THEN 1 ELSE 0 END, " +
-                    "p2wins = p2wins + CASE WHEN '" + SanitizeInput(tictactoeResult) + "' = 'Player 2' THEN 1 ELSE 0 END, " +
-                    "draws = draws + CASE WHEN '" + SanitizeInput(tictactoeResult) + "' = 'draw' THEN 1 ELSE 0 END;";
+                command.Parameters.AddWithValue("@winner", tictactoeResult);
                 command.ExecuteNonQuery();
             }
         }
@@ -81,12 +70,6 @@ public class PlayerScores : MonoBehaviour
     public void DisplayStats()
     {
         if (playerScores == null) return;
-        
-        if (!_currentUserId.HasValue)
-        {
-            playerScores.text = "Please login to view stats.";
-            return;
-        }
 
         using (var connection = new SqliteConnection(dbName))
         {
@@ -96,7 +79,7 @@ public class PlayerScores : MonoBehaviour
             {
                 command.CommandText = 
                     "SELECT total_games, p1wins, p2wins, draws " +
-                    "FROM user_stats WHERE user_id = " + _currentUserId + ";";
+                    "FROM player_stats";
 
                 using (IDataReader reader = command.ExecuteReader())
                 {
@@ -118,51 +101,6 @@ public class PlayerScores : MonoBehaviour
         }
     }
 
-    // Get recent game history for current user
-    public List<GameRecord> GetRecentGames(int limit = 10)
-    {
-        var games = new List<GameRecord>();
-        if (!_currentUserId.HasValue) return games;
-
-        using (var connection = new SqliteConnection(dbName))
-        {
-            connection.Open();
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText =
-                    "SELECT result, tictactoe_result, played_at " +
-                    "FROM games " +
-                    "WHERE user_id = " + _currentUserId +
-                    " ORDER BY played_at DESC LIMIT " + limit + ";";
-
-                using (IDataReader reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        games.Add(new GameRecord
-                        {
-                            result = reader["result"].ToString(),
-                            tictactoeResult = reader["tictactoe_result"].ToString(),
-                            playedAt = DateTime.Parse(reader["played_at"].ToString())
-                        });
-                    }
-                }
-            }
-        }
-
-        return games;
-    }
-
-    public class GameRecord
-    {
-        public string result;
-        public string tictactoeResult;
-        public DateTime playedAt;
-    }
-
-    private string SanitizeInput(string input) => input.Replace("'", "''");
-
     void CreateDB()
     {
         using (var connection = new SqliteConnection(dbName))
@@ -171,31 +109,26 @@ public class PlayerScores : MonoBehaviour
 
             using (var command = connection.CreateCommand())
             {
-                // Games table - tracks each game
                 command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS games (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        result TEXT NOT NULL,
-                        tictactoe_result TEXT NOT NULL,
-                        played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY(user_id) REFERENCES users(id)
-                    );";
-                command.ExecuteNonQuery();
-
-                // User stats table - aggregated stats per user
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS user_stats (
-                        user_id INTEGER PRIMARY KEY,
+                    CREATE TABLE IF NOT EXISTS player_stats (
                         total_games INTEGER DEFAULT 0,
                         p1wins INTEGER DEFAULT 0,
                         p2wins INTEGER DEFAULT 0,
                         draws INTEGER DEFAULT 0
-                    );";
+                    );
+
+                    INSERT INTO player_stats
+                        (total_games, p1wins, p2wins, draws)
+                    SELECT 0, 0, 0, 0
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM player_stats
+                    );
+                ";
+
                 command.ExecuteNonQuery();
             }
         }
 
-        Debug.Log("PlayerScores database initialized!");
+        Debug.Log("PlayerScores database made");
     }
 }

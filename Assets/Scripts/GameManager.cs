@@ -33,7 +33,7 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject _guide;
     [SerializeField] private GameObject _stats;
-    [SerializeField] private GameObject _user;
+    [SerializeField] private GameObject _exit;
 
     private void Awake()
     {
@@ -80,14 +80,10 @@ public class GameManager : MonoBehaviour
         _stats.gameObject.SetActive(false);
     }
 
-    // user
-    public void OpenUser()
+    // exit
+    public void Exit()
     {
-        _user.gameObject.SetActive(true);
-    }
-    public void CloseUser()
-    {
-        _user.gameObject.SetActive(false);
+        Application.Quit();
     }
 
     private void StartNewGame()
@@ -148,27 +144,23 @@ public class GameManager : MonoBehaviour
     // save scores
     private void SaveGameResult()
     {
-        string result;
         if (_currentGameState == TicTacToeResult.playerWin) 
         {
-            result = "win";
             _currentTicTacToeResult = "Player 1";
         }
         else if (_currentGameState == TicTacToeResult.opponentWin) 
         {
-            result = "loss";
             _currentTicTacToeResult = "Player 2";
         }
         else 
         {
-            result = "draw";
             _currentTicTacToeResult = "draw";
         }
 
         // Send to PlayerScores
         if (PlayerScores.instance != null)
         {
-            PlayerScores.instance.AddGameResult(result, _currentTicTacToeResult);
+            PlayerScores.instance.AddGameResult(_currentTicTacToeResult);
         }
     }
 
@@ -347,12 +339,11 @@ public class GameManager : MonoBehaviour
         ProcessTurn(_currentTurn, clickedSquare);
     }
 
-    // reset all gameobjects after logout
+    // reset all gameobjects
     public void CloseAllPanels()
     {
         _guide.SetActive(false);
         _stats.SetActive(false);
-        _user.SetActive(false);
         _gameResults.SetActive(false);
         StartNewGame(); 
     }
